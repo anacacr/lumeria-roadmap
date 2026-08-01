@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { ChevronDown, ChevronRight, Users, Layers, AlertTriangle, CheckCircle2, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Users, Layers, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 const ROLES = ["FSE", "Data Engineer", "AI Engineer", "Designer"];
 const ROLE_COLORS = {
@@ -112,7 +112,6 @@ function computeSprints(epics, team) {
     }
     sprintLoad.push({ sprint, load: loadThisSprint, capacity: perSprintCapacity });
     sprint += 1;
-    if (!remaining.some((e) => !done.has(e.id))) break;
   }
 
   return { scheduled, sprintLoad, totalSprints: sprint - 1 };
