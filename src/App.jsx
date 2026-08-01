@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { ChevronDown, ChevronRight, Users, Layers, AlertTriangle, CheckCircle2 } from "lucide-react";
+import "./App.css";
 
 const ROLES = ["FSE", "Data Engineer", "AI Engineer", "Designer"];
 const ROLE_COLORS = {
@@ -130,13 +131,23 @@ function computeSprints(epics, team) {
   return { scheduled, sprintLoad, totalSprints: sprint - 1, stuckEpicIds };
 }
 
-function RoleBadge({ role, size = "sm" }) {
+function RoleBadge({ role, size = "sm", style }) {
   const c = ROLE_COLORS[role];
   return (
     <span style={{
       background: c.bg, color: c.text, fontSize: size === "sm" ? 11 : 12,
       padding: "2px 8px", borderRadius: 20, fontWeight: 500, whiteSpace: "nowrap",
+      ...style,
     }}>{role}</span>
+  );
+}
+
+function StatTile({ label, value, accent }) {
+  return (
+    <div className="lr-card lr-stat" style={{ padding: "12px 14px" }}>
+      <div className="lr-stat-value" style={{ color: accent || "#1F3A5F" }}>{value}</div>
+      <div className="lr-stat-label">{label}</div>
+    </div>
   );
 }
 
@@ -144,8 +155,8 @@ function CapacityStripRow({ role, sprintLoad }) {
   const c = ROLE_COLORS[role];
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-      <div style={{ width: 96, flexShrink: 0 }}>
-        <RoleBadge role={role} />
+      <div className="lr-role-col" title={role}>
+        <RoleBadge role={role} style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }} />
       </div>
       <div style={{ flex: 1, display: "flex", gap: 2 }}>
         {sprintLoad.map((s) => {
@@ -215,9 +226,27 @@ export default function LumeriaRoadmap() {
     sprintLoad.flatMap((s) => ROLES.filter((r) => s.demand[r] > s.capacity[r] + 0.01))
   );
   const anyOverbooked = overSubscribedRoles.size > 0;
+  const teamSize = ROLES.reduce((sum, r) => sum + team[r].count, 0);
+
+  let statusValue = "On track";
+  let statusLabel = "capacity holds";
+  let statusAccent = "#0F6E56";
+  if (epics.length === 0) {
+    statusValue = "No scope";
+    statusLabel = "add epics to see status";
+    statusAccent = "#888";
+  } else if (stuckEpicIds.length > 0) {
+    statusValue = "Stuck";
+    statusLabel = `${stuckEpicIds.length} epic${stuckEpicIds.length > 1 ? "s" : ""} blocked`;
+    statusAccent = "#A32D2D";
+  } else if (anyOverbooked) {
+    statusValue = "Tight";
+    statusLabel = "some sprints over-subscribed";
+    statusAccent = "#B25A1F";
+  }
 
   return (
-    <div style={{ fontFamily: "-apple-system, Inter, sans-serif", color: "#1a1a1a", maxWidth: 1100, margin: "0 auto", padding: "24px 20px" }}>
+    <div className="lr-page">
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontSize: 12, letterSpacing: 1, color: "#888", fontWeight: 600, marginBottom: 4 }}>
           LUMERIA CLIMATE PLATFORM
@@ -229,19 +258,25 @@ export default function LumeriaRoadmap() {
         </p>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 20 }}>
+      <div className="lr-stats">
+        <StatTile label="People on team" value={teamSize} />
+        <StatTile label="Epics in scope" value={`${epics.length}/${EPICS_DEFAULT.length}`} />
+        <StatTile label={`~${totalSprints * SPRINT_WEEKS} weeks`} value={`${totalSprints} sprints`} />
+        <StatTile label={statusLabel} value={statusValue} accent={statusAccent} />
+      </div>
+
+      <div className="lr-layout">
         {/* LEFT PANEL */}
         <div>
-          <div style={{ border: "1px solid #E3E1D8", borderRadius: 10, padding: 16, marginBottom: 16 }}>
+          <div className="lr-card" style={{ padding: 16, marginBottom: 16 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 600, fontSize: 13, marginBottom: 12 }}>
               <Users size={15} /> Team
             </div>
             {ROLES.map((role) => {
               const active = team[role].count > 0;
               return (
-                <label key={role} style={{
-                  display: "flex", alignItems: "center", justifyContent: "space-between",
-                  padding: "6px 0", cursor: "pointer", opacity: active ? 1 : 0.45,
+                <label key={role} className="lr-row" style={{
+                  justifyContent: "space-between", opacity: active ? 1 : 0.45,
                 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <input type="checkbox" checked={active} onChange={() => toggleRole(role)} />
@@ -258,14 +293,13 @@ export default function LumeriaRoadmap() {
             </div>
           </div>
 
-          <div style={{ border: "1px solid #E3E1D8", borderRadius: 10, padding: 16 }}>
+          <div className="lr-card" style={{ padding: 16 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 600, fontSize: 13, marginBottom: 12 }}>
               <Layers size={15} /> Scope
             </div>
             {EPICS_DEFAULT.map((e) => (
-              <label key={e.id} style={{
-                display: "flex", alignItems: "flex-start", gap: 8, padding: "6px 0", cursor: "pointer",
-                opacity: activeEpics.includes(e.id) ? 1 : 0.45,
+              <label key={e.id} className="lr-row" style={{
+                alignItems: "flex-start", opacity: activeEpics.includes(e.id) ? 1 : 0.45,
               }}>
                 <input
                   type="checkbox"
@@ -273,7 +307,7 @@ export default function LumeriaRoadmap() {
                   onChange={() => toggleEpic(e.id)}
                   style={{ marginTop: 3 }}
                 />
-                <span style={{ fontSize: 12.5, lineHeight: 1.4 }}>{e.name}</span>
+                <span style={{ fontSize: 12.5, lineHeight: 1.4, marginLeft: 8 }}>{e.name}</span>
               </label>
             ))}
           </div>
@@ -308,12 +342,7 @@ export default function LumeriaRoadmap() {
 
         {/* RIGHT PANEL */}
         <div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
-            <div style={{ fontWeight: 600, fontSize: 14 }}>Timeline</div>
-            <div style={{ fontSize: 12, color: "#888" }}>
-              {totalSprints} sprints (~{totalSprints * SPRINT_WEEKS} weeks) at current scope + team
-            </div>
-          </div>
+          <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>Timeline</div>
 
           {epics.length === 0 && (
             <div style={{ color: "#999", fontSize: 13, padding: 20, textAlign: "center", border: "1px dashed #E3E1D8", borderRadius: 10 }}>
@@ -327,20 +356,17 @@ export default function LumeriaRoadmap() {
             const blockedByMissing = epic.dependsOn.some((d) => !activeEpics.includes(d));
             const isStuck = !sprintDone && !blockedByMissing && stuckEpicIds.includes(epic.id);
             return (
-              <div key={epic.id} style={{ border: "1px solid #E3E1D8", borderRadius: 10, marginBottom: 10, overflow: "hidden" }}>
+              <div key={epic.id} className="lr-card" style={{ marginBottom: 10 }}>
                 <button
                   onClick={() => setExpandedEpic(isExpanded ? null : epic.id)}
                   aria-expanded={isExpanded}
-                  style={{
-                    width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center",
-                    padding: "12px 14px", background: "#FAFAF7", border: "none", cursor: "pointer", textAlign: "left",
-                  }}
+                  className="lr-epic-btn"
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
                     {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                     <span style={{ fontWeight: 500, fontSize: 13.5 }}>{epic.name}</span>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                     {blockedByMissing ? (
                       <span style={{ fontSize: 11, color: "#A32D2D" }}>dependency missing</span>
                     ) : sprintDone ? (
@@ -385,12 +411,12 @@ export default function LumeriaRoadmap() {
           {sprintLoad.length > 0 && (
             <div style={{ marginTop: 20 }}>
               <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 10 }}>Capacity by sprint</div>
-              <div style={{ border: "1px solid #E3E1D8", borderRadius: 10, padding: "14px 16px" }}>
+              <div className="lr-card" style={{ padding: "14px 16px" }}>
                 {ROLES.filter((r) => team[r].count > 0).map((r) => (
                   <CapacityStripRow key={r} role={r} sprintLoad={sprintLoad} />
                 ))}
                 <div style={{ display: "flex", gap: 10 }}>
-                  <div style={{ width: 96, flexShrink: 0 }} />
+                  <div className="lr-role-col" />
                   <div style={{ flex: 1, display: "flex", gap: 2 }}>
                     {sprintLoad.map((s) => (
                       <div key={s.sprint} style={{ flex: 1, textAlign: "center", fontSize: 9, color: "#AAA" }}>
