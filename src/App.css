@@ -1,0 +1,107 @@
+.lr-page {
+  font-family: -apple-system, Inter, sans-serif;
+  color: #1a1a1a;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px 20px;
+  background: #FBFAF7;
+}
+
+.lr-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.lr-stat-value {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.lr-stat-label {
+  font-size: 11px;
+  color: #888;
+  margin-top: 3px;
+}
+
+.lr-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 20px;
+}
+
+.lr-card {
+  border: 1px solid #E3E1D8;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(20, 20, 10, 0.03);
+  overflow: hidden;
+}
+
+.lr-row {
+  display: flex;
+  align-items: center;
+  padding: 6px 8px;
+  margin: 0 -8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.lr-row:hover {
+  background: #F5F4EF;
+}
+
+.lr-epic-btn {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  row-gap: 6px;
+  padding: 12px 14px;
+  background: #FAFAF7;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.lr-epic-btn:hover {
+  background: #F1F0E9;
+}
+
+.lr-role-col {
+  width: 96px;
+  flex-shrink: 0;
+}
+
+button:focus-visible,
+input:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid #378ADD;
+  outline-offset: 2px;
+}
+
+@media (max-width: 880px) {
+  .lr-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .lr-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .lr-page {
+    padding: 16px 14px;
+  }
+  .lr-role-col {
+    width: 72px;
+  }
+}
