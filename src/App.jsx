@@ -84,24 +84,29 @@ function computeSprints(epics, team) {
   }));
 
   const sprintLoad = [];
+  let stuck = false;
 
   while (remaining.some((e) => !done.has(e.id)) && sprint <= maxSprints) {
     const loadThisSprint = Object.fromEntries(ROLES.map((r) => [r, 0]));
+    const demandThisSprint = Object.fromEntries(ROLES.map((r) => [r, 0]));
     let capLeft = { ...perSprintCapacity };
+    let anyProgress = false;
 
     for (const epic of remaining) {
       if (done.has(epic.id)) continue;
       const blocked = epic.dependsOn.some((d) => !done.has(d));
       if (blocked) continue;
 
-      let progressedAny = false;
       for (const role of ROLES) {
-        if (epic.remaining[role] > 0 && capLeft[role] > 0) {
+        if (epic.remaining[role] > 0) {
+          demandThisSprint[role] += epic.remaining[role];
           const use = Math.min(epic.remaining[role], capLeft[role]);
-          epic.remaining[role] -= use;
-          capLeft[role] -= use;
-          loadThisSprint[role] += use;
-          if (use > 0) progressedAny = true;
+          if (use > 0) {
+            epic.remaining[role] -= use;
+            capLeft[role] -= use;
+            loadThisSprint[role] += use;
+            anyProgress = true;
+          }
         }
       }
       const finished = ROLES.every((r) => epic.remaining[r] <= 0.001);
@@ -110,11 +115,19 @@ function computeSprints(epics, team) {
         scheduled[epic.id] = sprint;
       }
     }
-    sprintLoad.push({ sprint, load: loadThisSprint, capacity: perSprintCapacity });
+
+    if (!anyProgress) {
+      stuck = true;
+      break;
+    }
+
+    sprintLoad.push({ sprint, load: loadThisSprint, demand: demandThisSprint, capacity: perSprintCapacity });
     sprint += 1;
   }
 
-  return { scheduled, sprintLoad, totalSprints: sprint - 1 };
+  const stuckEpicIds = stuck ? remaining.filter((e) => !done.has(e.id)).map((e) => e.id) : [];
+
+  return { scheduled, sprintLoad, totalSprints: sprint - 1, stuckEpicIds };
 }
 
 function RoleBadge({ role, size = "sm" }) {
@@ -127,22 +140,23 @@ function RoleBadge({ role, size = "sm" }) {
   );
 }
 
-function CapacityBar({ role, used, capacity }) {
+function CapacityBar({ role, used, demand, capacity }) {
   const c = ROLE_COLORS[role];
   const pct = capacity > 0 ? Math.min(100, (used / capacity) * 100) : 0;
-  const over = used > capacity + 0.01;
+  const overSubscribed = demand > capacity + 0.01;
+  const waiting = demand - capacity;
   return (
     <div style={{ marginBottom: 6 }}>
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#555", marginBottom: 2 }}>
         <span>{role}</span>
-        <span style={{ color: over ? "#A32D2D" : "#555", fontWeight: over ? 600 : 400 }}>
-          {used.toFixed(1)} / {capacity.toFixed(1)} pw
+        <span style={{ color: overSubscribed ? "#A32D2D" : "#555", fontWeight: overSubscribed ? 600 : 400 }}>
+          {used.toFixed(1)} / {capacity.toFixed(1)} pw{overSubscribed ? ` (+${waiting.toFixed(1)} waiting)` : ""}
         </span>
       </div>
       <div style={{ height: 6, background: "#EEEEEA", borderRadius: 4, overflow: "hidden" }}>
         <div style={{
           width: `${pct}%`, height: "100%",
-          background: over ? "#E24B4A" : c.bar, borderRadius: 4, transition: "width 0.3s",
+          background: overSubscribed ? "#E24B4A" : c.bar, borderRadius: 4, transition: "width 0.3s",
         }} />
       </div>
     </div>
@@ -153,14 +167,13 @@ export default function LumeriaRoadmap() {
   const [team, setTeam] = useState(TEAM_DEFAULT);
   const [activeEpics, setActiveEpics] = useState(EPICS_DEFAULT.map((e) => e.id));
   const [expandedEpic, setExpandedEpic] = useState(null);
-  const [showTeamPanel, setShowTeamPanel] = useState(true);
 
   const epics = useMemo(
     () => EPICS_DEFAULT.filter((e) => activeEpics.includes(e.id)),
     [activeEpics]
   );
 
-  const { scheduled, sprintLoad, totalSprints } = useMemo(
+  const { scheduled, sprintLoad, totalSprints, stuckEpicIds } = useMemo(
     () => computeSprints(epics, team),
     [epics, team]
   );
@@ -183,9 +196,10 @@ export default function LumeriaRoadmap() {
     );
   };
 
-  const anyOverbooked = sprintLoad.some((s) =>
-    ROLES.some((r) => s.load[r] > s.capacity[r] + 0.01)
+  const overSubscribedRoles = new Set(
+    sprintLoad.flatMap((s) => ROLES.filter((r) => s.demand[r] > s.capacity[r] + 0.01))
   );
+  const anyOverbooked = overSubscribedRoles.size > 0;
 
   return (
     <div style={{ fontFamily: "-apple-system, Inter, sans-serif", color: "#1a1a1a", maxWidth: 1100, margin: "0 auto", padding: "24px 20px" }}>
@@ -255,7 +269,24 @@ export default function LumeriaRoadmap() {
               padding: "10px 12px", borderRadius: 8, display: "flex", gap: 8, alignItems: "flex-start",
             }}>
               <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: 1 }} />
-              <span>One or more roles are overbooked in at least one sprint. See red bars below.</span>
+              <span>
+                {[...overSubscribedRoles].join(", ")} {overSubscribedRoles.size > 1 ? "are" : "is"} more in
+                demand than the team can cover in at least one sprint, pushing work later. See "+waiting" bars below.
+              </span>
+            </div>
+          )}
+
+          {stuckEpicIds.length > 0 && (
+            <div style={{
+              marginTop: 16, background: "#FCEBEB", color: "#791F1F", fontSize: 12,
+              padding: "10px 12px", borderRadius: 8, display: "flex", gap: 8, alignItems: "flex-start",
+            }}>
+              <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: 1 }} />
+              <span>
+                {stuckEpicIds.length} epic{stuckEpicIds.length > 1 ? "s" : ""} marked "stuck" can't progress at
+                all — either a role they need has zero capacity, or they depend (directly or transitively) on
+                an epic that's out of scope. Check team capacity and dependency chains above.
+              </span>
             </div>
           )}
         </div>
@@ -279,10 +310,12 @@ export default function LumeriaRoadmap() {
             const isExpanded = expandedEpic === epic.id;
             const sprintDone = scheduled[epic.id];
             const blockedByMissing = epic.dependsOn.some((d) => !activeEpics.includes(d));
+            const isStuck = !sprintDone && !blockedByMissing && stuckEpicIds.includes(epic.id);
             return (
               <div key={epic.id} style={{ border: "1px solid #E3E1D8", borderRadius: 10, marginBottom: 10, overflow: "hidden" }}>
                 <button
                   onClick={() => setExpandedEpic(isExpanded ? null : epic.id)}
+                  aria-expanded={isExpanded}
                   style={{
                     width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center",
                     padding: "12px 14px", background: "#FAFAF7", border: "none", cursor: "pointer", textAlign: "left",
@@ -299,6 +332,8 @@ export default function LumeriaRoadmap() {
                       <span style={{ fontSize: 11, color: "#0F6E56", display: "flex", alignItems: "center", gap: 4 }}>
                         <CheckCircle2 size={13} /> sprint {sprintDone}
                       </span>
+                    ) : isStuck ? (
+                      <span style={{ fontSize: 11, color: "#A32D2D" }}>stuck</span>
                     ) : (
                       <span style={{ fontSize: 11, color: "#999" }}>unscheduled</span>
                     )}
@@ -340,7 +375,7 @@ export default function LumeriaRoadmap() {
                   <div key={s.sprint} style={{ border: "1px solid #E3E1D8", borderRadius: 8, padding: 10 }}>
                     <div style={{ fontSize: 11, fontWeight: 600, color: "#888", marginBottom: 8 }}>Sprint {s.sprint}</div>
                     {ROLES.filter((r) => team[r].count > 0).map((r) => (
-                      <CapacityBar key={r} role={r} used={s.load[r]} capacity={s.capacity[r]} />
+                      <CapacityBar key={r} role={r} used={s.load[r]} demand={s.demand[r]} capacity={s.capacity[r]} />
                     ))}
                   </div>
                 ))}
