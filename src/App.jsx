@@ -140,24 +140,39 @@ function RoleBadge({ role, size = "sm" }) {
   );
 }
 
-function CapacityBar({ role, used, demand, capacity }) {
+function CapacityStripRow({ role, sprintLoad }) {
   const c = ROLE_COLORS[role];
-  const pct = capacity > 0 ? Math.min(100, (used / capacity) * 100) : 0;
-  const overSubscribed = demand > capacity + 0.01;
-  const waiting = demand - capacity;
   return (
-    <div style={{ marginBottom: 6 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#555", marginBottom: 2 }}>
-        <span>{role}</span>
-        <span style={{ color: overSubscribed ? "#A32D2D" : "#555", fontWeight: overSubscribed ? 600 : 400 }}>
-          {used.toFixed(1)} / {capacity.toFixed(1)} pw{overSubscribed ? ` (+${waiting.toFixed(1)} waiting)` : ""}
-        </span>
+    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+      <div style={{ width: 96, flexShrink: 0 }}>
+        <RoleBadge role={role} />
       </div>
-      <div style={{ height: 6, background: "#EEEEEA", borderRadius: 4, overflow: "hidden" }}>
-        <div style={{
-          width: `${pct}%`, height: "100%",
-          background: overSubscribed ? "#E24B4A" : c.bar, borderRadius: 4, transition: "width 0.3s",
-        }} />
+      <div style={{ flex: 1, display: "flex", gap: 2 }}>
+        {sprintLoad.map((s) => {
+          const used = s.load[role];
+          const demand = s.demand[role];
+          const capacity = s.capacity[role];
+          const pct = capacity > 0 ? Math.min(100, (used / capacity) * 100) : 0;
+          const overSubscribed = demand > capacity + 0.01;
+          const title = `Sprint ${s.sprint} · ${role}: ${used.toFixed(1)} / ${capacity.toFixed(1)} pw used` +
+            (overSubscribed ? ` (+${(demand - capacity).toFixed(1)} pw waiting)` : "");
+          return (
+            <div
+              key={s.sprint}
+              title={title}
+              style={{
+                flex: 1, height: 18, borderRadius: 4, position: "relative", overflow: "hidden",
+                background: "#EEEEEA",
+                outline: overSubscribed ? "2px solid #E24B4A" : "none", outlineOffset: -2,
+              }}
+            >
+              <div style={{
+                position: "absolute", inset: 0, width: `${pct}%`,
+                background: overSubscribed ? "#E24B4A" : c.bar, borderRadius: 4,
+              }} />
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -370,15 +385,24 @@ export default function LumeriaRoadmap() {
           {sprintLoad.length > 0 && (
             <div style={{ marginTop: 20 }}>
               <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 10 }}>Capacity by sprint</div>
-              <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(sprintLoad.length, 6)}, 1fr)`, gap: 10, maxHeight: 320, overflowY: "auto", paddingRight: 4 }}>
-                {sprintLoad.map((s) => (
-                  <div key={s.sprint} style={{ border: "1px solid #E3E1D8", borderRadius: 8, padding: 10 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: "#888", marginBottom: 8 }}>Sprint {s.sprint}</div>
-                    {ROLES.filter((r) => team[r].count > 0).map((r) => (
-                      <CapacityBar key={r} role={r} used={s.load[r]} demand={s.demand[r]} capacity={s.capacity[r]} />
+              <div style={{ border: "1px solid #E3E1D8", borderRadius: 10, padding: "14px 16px" }}>
+                {ROLES.filter((r) => team[r].count > 0).map((r) => (
+                  <CapacityStripRow key={r} role={r} sprintLoad={sprintLoad} />
+                ))}
+                <div style={{ display: "flex", gap: 10 }}>
+                  <div style={{ width: 96, flexShrink: 0 }} />
+                  <div style={{ flex: 1, display: "flex", gap: 2 }}>
+                    {sprintLoad.map((s) => (
+                      <div key={s.sprint} style={{ flex: 1, textAlign: "center", fontSize: 9, color: "#AAA" }}>
+                        {s.sprint}
+                      </div>
                     ))}
                   </div>
-                ))}
+                </div>
+                <div style={{ fontSize: 10.5, color: "#999", marginTop: 10, borderTop: "1px solid #EEE", paddingTop: 8 }}>
+                  Fill shows how much of that sprint's capacity is used. Red outline = more work is ready than
+                  the role can fit, pushing some into a later sprint. Hover a cell for exact numbers.
+                </div>
               </div>
             </div>
           )}
