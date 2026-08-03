@@ -142,9 +142,14 @@ function RoleBadge({ role, size = "sm", style }) {
   );
 }
 
-function StatTile({ label, value, accent }) {
+function StatTile({ kicker, label, value, accent }) {
   return (
     <div className="lr-card lr-stat" style={{ padding: "12px 14px" }}>
+      {kicker && (
+        <div style={{ fontSize: 10, letterSpacing: 0.5, color: "#AAA", fontWeight: 600, marginBottom: 2 }}>
+          {kicker}
+        </div>
+      )}
       <div className="lr-stat-value" style={{ color: accent || "#1F3A5F" }}>{value}</div>
       <div className="lr-stat-label">{label}</div>
     </div>
@@ -226,6 +231,12 @@ export default function LumeriaRoadmap() {
     sprintLoad.flatMap((s) => ROLES.filter((r) => s.demand[r] > s.capacity[r] + 0.01))
   );
   const anyOverbooked = overSubscribedRoles.size > 0;
+  const overSubscribedDetails = ROLES.filter((r) => team[r].count > 0)
+    .map((r) => ({
+      role: r,
+      sprints: sprintLoad.filter((s) => s.demand[r] > s.capacity[r] + 0.01).map((s) => s.sprint),
+    }))
+    .filter((d) => d.sprints.length > 0);
   const teamSize = ROLES.reduce((sum, r) => sum + team[r].count, 0);
 
   let statusValue = "On track";
@@ -262,7 +273,7 @@ export default function LumeriaRoadmap() {
         <StatTile label="People on team" value={teamSize} />
         <StatTile label="Epics in scope" value={`${epics.length}/${EPICS_DEFAULT.length}`} />
         <StatTile label={`~${totalSprints * SPRINT_WEEKS} weeks`} value={`${totalSprints} sprints`} />
-        <StatTile label={statusLabel} value={statusValue} accent={statusAccent} />
+        <StatTile kicker="Status" label={statusLabel} value={statusValue} accent={statusAccent} />
       </div>
 
       <div className="lr-layout">
@@ -320,7 +331,8 @@ export default function LumeriaRoadmap() {
               <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: 1 }} />
               <span>
                 {[...overSubscribedRoles].join(", ")} {overSubscribedRoles.size > 1 ? "are" : "is"} more in
-                demand than the team can cover in at least one sprint, pushing work later. See "+waiting" bars below.
+                demand than the team can cover in at least one sprint, so that work gets pushed to a later
+                sprint. See the over capacity list under "Capacity by sprint" below for exactly where.
               </span>
             </div>
           )}
@@ -426,9 +438,19 @@ export default function LumeriaRoadmap() {
                   </div>
                 </div>
                 <div style={{ fontSize: 10.5, color: "#999", marginTop: 10, borderTop: "1px solid #EEE", paddingTop: 8 }}>
-                  Fill shows how much of that sprint's capacity is used. Red outline = more work is ready than
-                  the role can fit, pushing some into a later sprint. Hover a cell for exact numbers.
+                  Fill shows how much of that sprint's capacity is used. A red outline marks a sprint where more
+                  work was ready than the role could fit that sprint — hover a cell to see exactly how much.
                 </div>
+                {overSubscribedDetails.length > 0 && (
+                  <div style={{ fontSize: 11, color: "#A32D2D", marginTop: 8 }}>
+                    <strong>Over capacity:</strong>{" "}
+                    {overSubscribedDetails.map((d) => (
+                      <span key={d.role} style={{ marginRight: 10 }}>
+                        {d.role} — sprint{d.sprints.length > 1 ? "s" : ""} {d.sprints.join(", ")}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}
