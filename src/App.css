@@ -1,42 +1,61 @@
 .lr-page {
+  --bg: #0B0B0D;
+  --surface: #17171A;
+  --surface-alt: #1D1D21;
+  --surface-hover: #26262B;
+  --border: #2A2A2F;
+  --border-soft: #232327;
+  --track-bg: #232327;
+  --text: #EDEDEF;
+  --text-dim: #9A9AA2;
+  --text-faint: #6E6E76;
+  --accent: #5B9FE3;
+  --accent-strong: #8DC0F5;
+  --danger-bg: rgba(226, 75, 74, 0.14);
+  --danger-text: #F2A0A0;
+  --danger-strong: #EF8B8A;
+  --success: #34D399;
+  --warning: #F0A857;
+
   font-family: -apple-system, Inter, sans-serif;
-  color: #1a1a1a;
-  max-width: 1100px;
+  color: var(--text);
+  color-scheme: dark;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 24px 20px;
-  background: #FBFAF7;
+  padding: 32px 32px 48px;
+  background: var(--bg);
 }
 
 .lr-stats {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-  margin-bottom: 20px;
+  gap: 14px;
+  margin-bottom: 24px;
 }
 
 .lr-stat-value {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 600;
   line-height: 1.2;
 }
 
 .lr-stat-label {
   font-size: 11px;
-  color: #888;
+  color: var(--text-dim);
   margin-top: 3px;
 }
 
 .lr-layout {
   display: grid;
-  grid-template-columns: 280px 1fr;
-  gap: 20px;
+  grid-template-columns: 300px 1fr;
+  gap: 28px;
 }
 
 .lr-card {
-  border: 1px solid #E3E1D8;
+  border: 1px solid var(--border);
   border-radius: 10px;
-  background: #fff;
-  box-shadow: 0 1px 2px rgba(20, 20, 10, 0.03);
+  background: var(--surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
   overflow: hidden;
 }
 
@@ -51,7 +70,7 @@
 }
 
 .lr-row:hover {
-  background: #F5F4EF;
+  background: var(--surface-alt);
 }
 
 .lr-epic-btn {
@@ -62,27 +81,34 @@
   flex-wrap: wrap;
   row-gap: 6px;
   padding: 12px 14px;
-  background: #FAFAF7;
+  background: var(--surface-alt);
   border: none;
   cursor: pointer;
   text-align: left;
+  color: var(--text);
   transition: background 0.15s ease;
 }
 
 .lr-epic-btn:hover {
-  background: #F1F0E9;
+  background: var(--surface-hover);
 }
 
 .lr-role-col {
-  width: 96px;
+  width: 104px;
   flex-shrink: 0;
 }
 
 button:focus-visible,
 input:focus-visible,
 [tabindex]:focus-visible {
-  outline: 2px solid #378ADD;
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+@media (max-width: 1300px) {
+  .lr-page {
+    max-width: 100%;
+  }
 }
 
 @media (max-width: 880px) {
