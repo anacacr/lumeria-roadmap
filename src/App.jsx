@@ -4,10 +4,10 @@ import "./App.css";
 
 const ROLES = ["FSE", "Data Engineer", "AI Engineer", "Designer"];
 const ROLE_COLORS = {
-  "FSE": { bg: "#E6F1FB", text: "#0C447C", bar: "#378ADD" },
-  "Data Engineer": { bg: "#E1F5EE", text: "#085041", bar: "#1D9E75" },
-  "AI Engineer": { bg: "#FAECE7", text: "#712B13", bar: "#D85A30" },
-  "Designer": { bg: "#EEEDFE", text: "#3C3489", bar: "#7F77DD" },
+  "FSE": { bg: "rgba(91, 159, 227, 0.16)", text: "#9CC5F5", bar: "#5B9FE3" },
+  "Data Engineer": { bg: "rgba(47, 190, 143, 0.16)", text: "#7EDDBB", bar: "#2FBE8F" },
+  "AI Engineer": { bg: "rgba(232, 121, 74, 0.18)", text: "#F3A97D", bar: "#E8794A" },
+  "Designer": { bg: "rgba(155, 143, 240, 0.18)", text: "#C2B8F7", bar: "#9B8FF0" },
 };
 
 const TEAM_DEFAULT = {
@@ -144,13 +144,11 @@ function RoleBadge({ role, size = "sm", style }) {
 
 function StatTile({ kicker, label, value, accent }) {
   return (
-    <div className="lr-card lr-stat" style={{ padding: "12px 14px" }}>
-      {kicker && (
-        <div style={{ fontSize: 10, letterSpacing: 0.5, color: "#AAA", fontWeight: 600, marginBottom: 2 }}>
-          {kicker}
-        </div>
-      )}
-      <div className="lr-stat-value" style={{ color: accent || "#1F3A5F" }}>{value}</div>
+    <div className="lr-card lr-stat" style={{ padding: "14px 16px" }}>
+      <div style={{ fontSize: 10, letterSpacing: 0.5, color: "var(--text-faint)", fontWeight: 600, marginBottom: 4, textTransform: "uppercase" }}>
+        {kicker}
+      </div>
+      <div className="lr-stat-value" style={{ color: accent || "var(--text)" }}>{value}</div>
       <div className="lr-stat-label">{label}</div>
     </div>
   );
@@ -178,13 +176,13 @@ function CapacityStripRow({ role, sprintLoad }) {
               title={title}
               style={{
                 flex: 1, height: 18, borderRadius: 4, position: "relative", overflow: "hidden",
-                background: "#EEEEEA",
-                outline: overSubscribed ? "2px solid #E24B4A" : "none", outlineOffset: -2,
+                background: "var(--track-bg)",
+                outline: overSubscribed ? "2px solid var(--danger-strong)" : "none", outlineOffset: -2,
               }}
             >
               <div style={{
                 position: "absolute", inset: 0, width: `${pct}%`,
-                background: overSubscribed ? "#E24B4A" : c.bar, borderRadius: 4,
+                background: overSubscribed ? "var(--danger-strong)" : c.bar, borderRadius: 4,
               }} />
             </div>
           );
@@ -241,38 +239,38 @@ export default function LumeriaRoadmap() {
 
   let statusValue = "On track";
   let statusLabel = "capacity holds";
-  let statusAccent = "#0F6E56";
+  let statusAccent = "var(--success)";
   if (epics.length === 0) {
     statusValue = "No scope";
     statusLabel = "add epics to see status";
-    statusAccent = "#888";
+    statusAccent = "var(--text-dim)";
   } else if (stuckEpicIds.length > 0) {
     statusValue = "Stuck";
     statusLabel = `${stuckEpicIds.length} epic${stuckEpicIds.length > 1 ? "s" : ""} blocked`;
-    statusAccent = "#A32D2D";
+    statusAccent = "var(--danger-strong)";
   } else if (anyOverbooked) {
     statusValue = "Tight";
     statusLabel = "some sprints over-subscribed";
-    statusAccent = "#B25A1F";
+    statusAccent = "var(--warning)";
   }
 
   return (
     <div className="lr-page">
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 12, letterSpacing: 1, color: "#888", fontWeight: 600, marginBottom: 4 }}>
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ fontSize: 12, letterSpacing: 1, color: "var(--text-dim)", fontWeight: 600, marginBottom: 4 }}>
           LUMERIA CLIMATE PLATFORM
         </div>
-        <h1 style={{ fontSize: 26, fontWeight: 600, margin: 0, color: "#1F3A5F" }}>Roadmap Navigator</h1>
-        <p style={{ color: "#666", fontSize: 14, marginTop: 6, maxWidth: 640 }}>
+        <h1 style={{ fontSize: 28, fontWeight: 600, margin: 0, color: "var(--text)" }}>Roadmap Navigator</h1>
+        <p style={{ color: "var(--text-dim)", fontSize: 14, marginTop: 6, maxWidth: 640 }}>
           Live capacity-based roadmap. Toggle team and scope below — the timeline and
           capacity bars recalculate immediately.
         </p>
       </div>
 
       <div className="lr-stats">
-        <StatTile label="People on team" value={teamSize} />
-        <StatTile label="Epics in scope" value={`${epics.length}/${EPICS_DEFAULT.length}`} />
-        <StatTile label={`~${totalSprints * SPRINT_WEEKS} weeks`} value={`${totalSprints} sprints`} />
+        <StatTile kicker="Team" value={teamSize} label="people" />
+        <StatTile kicker="Scope" value={`${epics.length}/${EPICS_DEFAULT.length}`} label="epics" />
+        <StatTile kicker="Timeline" value={`${totalSprints} sprints`} label={`~${totalSprints * SPRINT_WEEKS} weeks`} />
         <StatTile kicker="Status" label={statusLabel} value={statusValue} accent={statusAccent} />
       </div>
 
@@ -293,13 +291,13 @@ export default function LumeriaRoadmap() {
                     <input type="checkbox" checked={active} onChange={() => toggleRole(role)} />
                     <RoleBadge role={role} />
                   </div>
-                  <span style={{ fontSize: 12, color: "#888" }}>
+                  <span style={{ fontSize: 12, color: "var(--text-dim)" }}>
                     {active ? `×${TEAM_DEFAULT[role].count}` : "off"}
                   </span>
                 </label>
               );
             })}
-            <div style={{ fontSize: 11, color: "#999", marginTop: 10, borderTop: "1px solid #EEE", paddingTop: 8 }}>
+            <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 10, borderTop: "1px solid var(--border-soft)", paddingTop: 8 }}>
               Baseline: 1.6 effective person-weeks / role / sprint. +18% risk buffer applied.
             </div>
           </div>
@@ -325,7 +323,7 @@ export default function LumeriaRoadmap() {
 
           {anyOverbooked && (
             <div style={{
-              marginTop: 16, background: "#FCEBEB", color: "#791F1F", fontSize: 12,
+              marginTop: 16, background: "var(--danger-bg)", color: "var(--danger-text)", fontSize: 12,
               padding: "10px 12px", borderRadius: 8, display: "flex", gap: 8, alignItems: "flex-start",
             }}>
               <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: 1 }} />
@@ -339,7 +337,7 @@ export default function LumeriaRoadmap() {
 
           {stuckEpicIds.length > 0 && (
             <div style={{
-              marginTop: 16, background: "#FCEBEB", color: "#791F1F", fontSize: 12,
+              marginTop: 16, background: "var(--danger-bg)", color: "var(--danger-text)", fontSize: 12,
               padding: "10px 12px", borderRadius: 8, display: "flex", gap: 8, alignItems: "flex-start",
             }}>
               <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: 1 }} />
@@ -357,7 +355,7 @@ export default function LumeriaRoadmap() {
           <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>Timeline</div>
 
           {epics.length === 0 && (
-            <div style={{ color: "#999", fontSize: 13, padding: 20, textAlign: "center", border: "1px dashed #E3E1D8", borderRadius: 10 }}>
+            <div style={{ color: "var(--text-dim)", fontSize: 13, padding: 20, textAlign: "center", border: "1px dashed var(--border)", borderRadius: 10 }}>
               No epics in scope. Toggle at least one on the left.
             </div>
           )}
@@ -380,15 +378,15 @@ export default function LumeriaRoadmap() {
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                     {blockedByMissing ? (
-                      <span style={{ fontSize: 11, color: "#A32D2D" }}>dependency missing</span>
+                      <span style={{ fontSize: 11, color: "var(--danger-strong)" }}>dependency missing</span>
                     ) : sprintDone ? (
-                      <span style={{ fontSize: 11, color: "#0F6E56", display: "flex", alignItems: "center", gap: 4 }}>
+                      <span style={{ fontSize: 11, color: "var(--success)", display: "flex", alignItems: "center", gap: 4 }}>
                         <CheckCircle2 size={13} /> sprint {sprintDone}
                       </span>
                     ) : isStuck ? (
-                      <span style={{ fontSize: 11, color: "#A32D2D" }}>stuck</span>
+                      <span style={{ fontSize: 11, color: "var(--danger-strong)" }}>stuck</span>
                     ) : (
-                      <span style={{ fontSize: 11, color: "#999" }}>unscheduled</span>
+                      <span style={{ fontSize: 11, color: "var(--text-dim)" }}>unscheduled</span>
                     )}
                     {Object.keys(epic.roles).map((r) => (
                       <span key={r} style={{ width: 8, height: 8, borderRadius: "50%", background: ROLE_COLORS[r].bar, display: "inline-block" }} />
@@ -396,14 +394,14 @@ export default function LumeriaRoadmap() {
                   </div>
                 </button>
                 {isExpanded && (
-                  <div style={{ padding: "12px 14px", borderTop: "1px solid #E3E1D8" }}>
+                  <div style={{ padding: "12px 14px", borderTop: "1px solid var(--border)" }}>
                     {epic.dependsOn.length > 0 && (
-                      <div style={{ fontSize: 11.5, color: "#888", marginBottom: 10 }}>
+                      <div style={{ fontSize: 11.5, color: "var(--text-dim)", marginBottom: 10 }}>
                         Depends on: {epic.dependsOn.map((d) => EPICS_DEFAULT.find((x) => x.id === d)?.name).join(", ")}
                       </div>
                     )}
                     {epic.features.map((f, i) => (
-                      <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: i < epic.features.length - 1 ? "1px solid #F0EFE9" : "none" }}>
+                      <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: i < epic.features.length - 1 ? "1px solid var(--border-soft)" : "none" }}>
                         <span style={{ fontSize: 12.5 }}>{f.name}</span>
                         <div style={{ display: "flex", gap: 4 }}>
                           {Object.entries(f.roles).map(([r, w]) => (
@@ -431,18 +429,18 @@ export default function LumeriaRoadmap() {
                   <div className="lr-role-col" />
                   <div style={{ flex: 1, display: "flex", gap: 2 }}>
                     {sprintLoad.map((s) => (
-                      <div key={s.sprint} style={{ flex: 1, textAlign: "center", fontSize: 9, color: "#AAA" }}>
+                      <div key={s.sprint} style={{ flex: 1, textAlign: "center", fontSize: 9, color: "var(--text-faint)" }}>
                         {s.sprint}
                       </div>
                     ))}
                   </div>
                 </div>
-                <div style={{ fontSize: 10.5, color: "#999", marginTop: 10, borderTop: "1px solid #EEE", paddingTop: 8 }}>
+                <div style={{ fontSize: 10.5, color: "var(--text-dim)", marginTop: 10, borderTop: "1px solid var(--border-soft)", paddingTop: 8 }}>
                   Fill shows how much of that sprint's capacity is used. A red outline marks a sprint where more
                   work was ready than the role could fit that sprint — hover a cell to see exactly how much.
                 </div>
                 {overSubscribedDetails.length > 0 && (
-                  <div style={{ fontSize: 11, color: "#A32D2D", marginTop: 8 }}>
+                  <div style={{ fontSize: 11, color: "var(--danger-strong)", marginTop: 8 }}>
                     <strong>Over capacity:</strong>{" "}
                     {overSubscribedDetails.map((d) => (
                       <span key={d.role} style={{ marginRight: 10 }}>
