@@ -11,11 +11,14 @@
   --text-faint: #6E6E76;
   --accent: #5B9FE3;
   --accent-strong: #8DC0F5;
-  --danger-bg: rgba(226, 75, 74, 0.14);
+  --danger-bg: rgba(208, 59, 59, 0.16);
   --danger-text: #F2A0A0;
-  --danger-strong: #EF8B8A;
-  --success: #34D399;
-  --warning: #F0A857;
+  --danger-strong: #D03B3B;
+  --success: #0CA30C;
+  --warning: #FAB219;
+
+  --seg-btn: transparent;
+  --seg-btn-active: var(--surface-hover);
 
   font-family: -apple-system, Inter, sans-serif;
   color: var(--text);
@@ -98,6 +101,40 @@
   flex-shrink: 0;
 }
 
+.lr-roadmap-labels {
+  width: 220px;
+}
+
+.lr-seg {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+  background: var(--surface);
+}
+
+.lr-seg button {
+  border: none;
+  background: var(--seg-btn);
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.lr-seg button.active {
+  background: var(--seg-btn-active);
+  color: var(--text);
+}
+
+.lr-seg button:not(.active):hover {
+  color: var(--text);
+}
+
 button:focus-visible,
 input:focus-visible,
 [tabindex]:focus-visible {
@@ -120,6 +157,12 @@ input:focus-visible,
 @media (max-width: 640px) {
   .lr-stats {
     grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .lr-roadmap-labels {
+    width: 140px;
   }
 }
 
