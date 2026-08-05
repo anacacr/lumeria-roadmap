@@ -3,12 +3,17 @@ import { ChevronDown, ChevronRight, Users, Layers, AlertTriangle, CheckCircle2, 
 import "./App.css";
 
 const ROLES = ["FSE", "Data Engineer", "AI Engineer", "Designer"];
-// Categorical palette validated for dark surfaces (order matters — see dataviz skill validator)
+// Categorical palette validated for dark surfaces (see dataviz skill validator). Data
+// Engineer and Designer were re-picked after user testing found the original green
+// collided with the "Scheduled" status color, and the follow-up magenta collided with
+// Designer's violet — both since replaced with a rose/plum pair validated against every
+// role combination that actually co-occurs on an epic bar (Designer never appears next
+// to Data Engineer in this data, so that one pair isn't validated — re-check if that changes).
 const ROLE_COLORS = {
   "FSE": { bg: "rgba(57, 135, 229, 0.18)", text: "#9CC2F5", bar: "#3987E5" },
   "AI Engineer": { bg: "rgba(217, 89, 38, 0.20)", text: "#F0A87D", bar: "#D95926" },
-  "Data Engineer": { bg: "rgba(25, 158, 112, 0.18)", text: "#7FD4B4", bar: "#199E70" },
-  "Designer": { bg: "rgba(144, 133, 233, 0.20)", text: "#C4BCF5", bar: "#9085E9" },
+  "Data Engineer": { bg: "rgba(157, 53, 112, 0.20)", text: "#E3A0C0", bar: "#9D3570" },
+  "Designer": { bg: "rgba(139, 63, 158, 0.20)", text: "#D4A8E8", bar: "#8B3F9E" },
 };
 
 // Status palette — fixed, never themed by role/series color (dataviz skill)
