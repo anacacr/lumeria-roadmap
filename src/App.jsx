@@ -74,6 +74,16 @@ const EPICS_DEFAULT = [
       { name: "City onboarding walkthrough", roles: { "Designer": 1, "FSE": 1 } },
     ],
   },
+  {
+    id: "community-alerts",
+    name: "Community Alerts & Notifications",
+    dependsOn: [],
+    roles: { "Designer": 4 },
+    features: [
+      { name: "Alert subscription UI", roles: { "Designer": 2 } },
+      { name: "Accessibility pass", roles: { "Designer": 2 } },
+    ],
+  },
 ];
 
 const MILESTONES_DEFAULT = [
