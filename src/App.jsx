@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import { ChevronDown, ChevronRight, Users, Layers, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Users, Layers, AlertTriangle, CheckCircle2, Lightbulb } from "lucide-react";
 import "./App.css";
 
 const ROLES = ["FSE", "Data Engineer", "AI Engineer", "Designer"];
@@ -71,6 +71,11 @@ const EPICS_DEFAULT = [
   },
 ];
 
+const MILESTONES_DEFAULT = [
+  { id: "board-update", name: "Board update", sprint: 4 },
+  { id: "public-launch", name: "Public launch", sprint: 8 },
+];
+
 const BUFFER = 0.18;
 const SPRINT_WEEKS = 2;
 
@@ -140,6 +145,56 @@ function computeSprints(epics, team) {
   const stuckEpicIds = stuck ? remaining.filter((e) => !done.has(e.id)).map((e) => e.id) : [];
 
   return { scheduled, started, sprintLoad, totalSprints: sprint - 1, stuckEpicIds };
+}
+
+// Which epics have zero slack: delaying them would push out the whole schedule.
+// Simulated directly against computeSprints (perturb one epic, see if totalSprints
+// moves) rather than an analytic formula, since capacity contention makes the
+// classic critical-path-method math inexact here — this way it can't drift from
+// what the scheduler actually does.
+function computeCriticalPath(epics, team) {
+  if (epics.length === 0) return new Set();
+  const base = computeSprints(epics, team);
+  if (base.stuckEpicIds.length > 0) return new Set(); // only meaningful for a fully resolved schedule
+  const critical = new Set();
+  epics.forEach((epic) => {
+    const bottleneckRole = ROLES.reduce(
+      (best, r) => ((epic.roles[r] || 0) > (epic.roles[best] || 0) ? r : best),
+      ROLES[0]
+    );
+    const t = team[bottleneckRole];
+    const bump = Math.max((t ? t.count * t.weeklyCapacity * SPRINT_WEEKS : 0) * 1.5, 3);
+    const perturbedEpics = epics.map((e) =>
+      e.id === epic.id
+        ? { ...e, roles: { ...e.roles, [bottleneckRole]: (e.roles[bottleneckRole] || 0) + bump }}
+        : e
+    );
+    const perturbed = computeSprints(perturbedEpics, team);
+    if (perturbed.stuckEpicIds.length === 0 && perturbed.totalSprints > base.totalSprints) {
+      critical.add(epic.id);
+    }
+  });
+  return critical;
+}
+
+// Tries adding 1 headcount to each role and reports whichever single change
+// helps most — unblocking stuck epics first, then finishing sooner.
+function suggestBestCapacityChange(epics, team, baseline) {
+  if (epics.length === 0) return null;
+  let best = null;
+  ROLES.forEach((role) => {
+    const bumpedTeam = { ...team, [role]: { ...team[role], count: team[role].count + 1 } };
+    const result = computeSprints(epics, bumpedTeam);
+    const stuckDelta = baseline.stuckEpicIds.length - result.stuckEpicIds.length;
+    const sprintDelta = baseline.totalSprints - result.totalSprints;
+    if (stuckDelta > 0 || (stuckDelta === 0 && sprintDelta > 0)) {
+      const better = !best
+        || stuckDelta > best.stuckDelta
+        || (stuckDelta === best.stuckDelta && sprintDelta > best.sprintDelta);
+      if (better) best = { role, stuckDelta, sprintDelta };
+    }
+  });
+  return best;
 }
 
 function RoleBadge({ role, size = "sm", style }) {
@@ -219,15 +274,21 @@ function useElementWidth() {
   return [ref, width];
 }
 
-function RoleLegend() {
+function RoleLegend({ showCriticalKey }) {
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 14, marginBottom: 14 }}>
+    <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 14, marginBottom: 14 }}>
       {ROLES.map((r) => (
         <div key={r} style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span style={{ width: 9, height: 9, borderRadius: "50%", background: ROLE_COLORS[r].bar, display: "inline-block" }} />
           <span style={{ fontSize: 11.5, color: "var(--text-dim)" }}>{r}</span>
         </div>
       ))}
+      {showCriticalKey && (
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ width: 14, height: 9, borderRadius: 3, boxShadow: "0 0 0 2px var(--accent-strong)", display: "inline-block" }} />
+          <span style={{ fontSize: 11.5, color: "var(--text-dim)" }}>Critical path</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -237,12 +298,13 @@ const ROW_GAP = 18;
 const ROW_STEP = ROW_HEIGHT + ROW_GAP;
 const MIN_COL_WIDTH = 56;
 
-function RoadmapChart({ epics, activeEpics, scheduled, started, stuckEpicIds, totalSprints }) {
+function RoadmapChart({ epics, activeEpics, scheduled, started, stuckEpicIds, totalSprints, criticalPathIds, milestones }) {
   const [gridRef, gridWidth] = useElementWidth();
   const hasOverflow = stuckEpicIds.length > 0;
   const totalCols = Math.max(totalSprints, 1) + (hasOverflow ? 1 : 0);
   const colWidth = gridWidth / totalCols;
   const chartHeight = epics.length * ROW_STEP - ROW_GAP;
+  const visibleMilestones = milestones.filter((m) => m.sprint <= totalSprints);
 
   const rowIndex = Object.fromEntries(epics.map((e, i) => [e.id, i]));
 
@@ -264,7 +326,7 @@ function RoadmapChart({ epics, activeEpics, scheduled, started, stuckEpicIds, to
 
   return (
     <div className="lr-card" style={{ padding: "18px 20px" }}>
-      <RoleLegend />
+      <RoleLegend showCriticalKey={criticalPathIds.size > 0} />
 
       <div style={{ display: "flex" }}>
         <div className="lr-roadmap-labels" style={{ flexShrink: 0 }}>
@@ -281,7 +343,13 @@ function RoadmapChart({ epics, activeEpics, scheduled, started, stuckEpicIds, to
         </div>
 
         <div style={{ flex: 1, overflowX: "auto" }}>
-          <div style={{ display: "flex", minWidth: totalCols * MIN_COL_WIDTH }}>
+          <div style={{ display: "flex", minWidth: totalCols * MIN_COL_WIDTH, position: "relative" }}>
+            <div style={{
+              position: "absolute", left: 0, top: -2, fontSize: 9.5, color: "var(--accent-strong)",
+              fontWeight: 700, letterSpacing: 0.3, textTransform: "uppercase",
+            }}>
+              ◂ Today
+            </div>
             {Array.from({ length: totalCols }).map((_, i) => (
               <div key={i} style={{ flex: 1, textAlign: "center", fontSize: 10.5, color: "var(--text-faint)", fontWeight: 600, paddingBottom: 8 }}>
                 {i < totalSprints ? i + 1 : "…"}
@@ -295,6 +363,28 @@ function RoadmapChart({ epics, activeEpics, scheduled, started, stuckEpicIds, to
               <div key={i} style={{ flex: 1, borderLeft: i > 0 ? "1px solid var(--border-soft)" : "none" }} />
             ))}
           </div>
+
+          {gridWidth > 0 && visibleMilestones.map((m) => {
+            const nearRightEdge = m.sprint / totalCols > 0.8;
+            return (
+              <div
+                key={m.id}
+                title={`Milestone: ${m.name} (sprint ${m.sprint})`}
+                style={{
+                  position: "absolute", top: 0, bottom: 0, left: m.sprint * colWidth,
+                  borderLeft: "2px dashed var(--warning)",
+                }}
+              >
+                <span style={{
+                  position: "absolute", top: 2, fontSize: 9.5, color: "var(--warning)",
+                  fontWeight: 600, whiteSpace: "nowrap",
+                  ...(nearRightEdge ? { right: 4 } : { left: 4 }),
+                }}>
+                  ◆ {m.name}
+                </span>
+              </div>
+            );
+          })}
 
           {gridWidth > 0 && (
             <svg
@@ -314,12 +404,15 @@ function RoadmapChart({ epics, activeEpics, scheduled, started, stuckEpicIds, to
             const isStuck = finish == null && !blockedByMissing && stuckEpicIds.includes(epic.id);
             const top = i * ROW_STEP + (ROW_HEIGHT - 20) / 2;
 
+            const isCritical = criticalPathIds.has(epic.id);
+
             let left, width, color, dashed = false, fade = false, label;
             if (finish != null) {
               left = (start - 1) * colWidth;
               width = Math.max((finish - start + 1) * colWidth - 4, 10);
               color = STATUS.good;
               label = start === finish ? `Sprint ${start}` : `Sprints ${start}–${finish}`;
+              if (isCritical) label += " · critical path";
             } else if (isStuck && start != null) {
               left = (start - 1) * colWidth;
               width = Math.max((totalCols - (start - 1)) * colWidth - 4, 10);
@@ -342,6 +435,7 @@ function RoadmapChart({ epics, activeEpics, scheduled, started, stuckEpicIds, to
                   position: "absolute", top, left, width, height: 20, borderRadius: 5,
                   background: dashed ? "transparent" : color,
                   border: dashed ? `1.5px dashed ${color}` : "none",
+                  boxShadow: isCritical ? "0 0 0 2px var(--accent-strong)" : "none",
                   maskImage: fade ? "linear-gradient(to right, black 75%, transparent 100%)" : "none",
                   display: "flex", alignItems: "center", gap: 5, paddingLeft: 6, overflow: "hidden",
                 }}
@@ -359,6 +453,109 @@ function RoadmapChart({ epics, activeEpics, scheduled, started, stuckEpicIds, to
   );
 }
 
+function InsightCard({ criticalChainNames, suggestion }) {
+  if (criticalChainNames.length === 0 && !suggestion) return null;
+  return (
+    <div className="lr-card" style={{ padding: "14px 16px", marginBottom: 20, display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 600, fontSize: 13 }}>
+        <Lightbulb size={15} color="var(--warning)" /> Insight
+      </div>
+      {criticalChainNames.length > 0 && (
+        <div style={{ fontSize: 12.5, color: "var(--text-dim)" }}>
+          The critical path runs through{" "}
+          <strong style={{ color: "var(--text)" }}>{criticalChainNames.join(" → ")}</strong> — delaying
+          any one of these pushes the whole roadmap out.
+        </div>
+      )}
+      {suggestion && (
+        <div style={{ fontSize: 12.5, color: "var(--text-dim)" }}>
+          {suggestion.stuckDelta > 0 ? (
+            <>
+              Adding 1 more <strong style={{ color: "var(--text)" }}>{suggestion.role}</strong> would unblock{" "}
+              {suggestion.stuckDelta} stuck epic{suggestion.stuckDelta > 1 ? "s" : ""}
+              {suggestion.sprintDelta > 0
+                ? ` and finish ${suggestion.sprintDelta} sprint${suggestion.sprintDelta > 1 ? "s" : ""} sooner`
+                : ""}.
+            </>
+          ) : (
+            <>
+              Adding 1 more <strong style={{ color: "var(--text)" }}>{suggestion.role}</strong> would finish the
+              roadmap {suggestion.sprintDelta} sprint{suggestion.sprintDelta > 1 ? "s" : ""} sooner (~
+              {suggestion.sprintDelta * SPRINT_WEEKS} weeks).
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TableView({ epics, activeEpics, scheduled, started, stuckEpicIds, criticalPathIds }) {
+  const cellStyle = { padding: "10px 14px", verticalAlign: "top" };
+  return (
+    <div className="lr-card" style={{ overflowX: "auto" }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+        <thead>
+          <tr>
+            {["Epic", "Status", "Sprint(s)", "Effort", "Depends on", "Critical"].map((h) => (
+              <th key={h} style={{
+                textAlign: "left", padding: "10px 14px", borderBottom: "1px solid var(--border)",
+                color: "var(--text-dim)", fontWeight: 600, fontSize: 11, textTransform: "uppercase", whiteSpace: "nowrap",
+              }}>
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {epics.map((epic) => {
+            const blockedByMissing = epic.dependsOn.some((d) => !activeEpics.includes(d));
+            const finish = scheduled[epic.id];
+            const start = started[epic.id];
+            const isStuck = finish == null && !blockedByMissing && stuckEpicIds.includes(epic.id);
+
+            let statusText, statusColor;
+            if (blockedByMissing) { statusText = "Dependency missing"; statusColor = STATUS.critical; }
+            else if (finish != null) { statusText = "Scheduled"; statusColor = STATUS.good; }
+            else if (isStuck) { statusText = "Stuck"; statusColor = STATUS.critical; }
+            else { statusText = "Unscheduled"; statusColor = "var(--text-dim)"; }
+
+            return (
+              <tr key={epic.id} style={{ borderBottom: "1px solid var(--border-soft)" }}>
+                <td style={{ ...cellStyle, fontWeight: 500 }}>{epic.name}</td>
+                <td style={{ ...cellStyle, color: statusColor }}>{statusText}</td>
+                <td style={{ ...cellStyle, color: "var(--text-dim)", whiteSpace: "nowrap" }}>
+                  {finish != null ? (start === finish ? `Sprint ${start}` : `${start}–${finish}`) : "—"}
+                </td>
+                <td style={cellStyle}>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                    {Object.entries(epic.roles).map(([r, w]) => (
+                      <span key={r} style={{
+                        fontSize: 10.5, color: ROLE_COLORS[r].text, background: ROLE_COLORS[r].bg,
+                        padding: "1px 6px", borderRadius: 10, whiteSpace: "nowrap",
+                      }}>
+                        {r} {w}pw
+                      </span>
+                    ))}
+                  </div>
+                </td>
+                <td style={{ ...cellStyle, color: "var(--text-dim)" }}>
+                  {epic.dependsOn.length > 0
+                    ? epic.dependsOn.map((d) => EPICS_DEFAULT.find((x) => x.id === d)?.name).join(", ")
+                    : "—"}
+                </td>
+                <td style={cellStyle}>
+                  {criticalPathIds.has(epic.id) ? <span style={{ color: "var(--accent-strong)" }}>●</span> : "—"}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function LumeriaRoadmap() {
   const [team, setTeam] = useState(TEAM_DEFAULT);
   const [activeEpics, setActiveEpics] = useState(EPICS_DEFAULT.map((e) => e.id));
@@ -370,9 +567,24 @@ export default function LumeriaRoadmap() {
     [activeEpics]
   );
 
-  const { scheduled, started, sprintLoad, totalSprints, stuckEpicIds } = useMemo(
+  const baseline = useMemo(
     () => computeSprints(epics, team),
     [epics, team]
+  );
+  const { scheduled, started, sprintLoad, totalSprints, stuckEpicIds } = baseline;
+
+  const criticalPathIds = useMemo(
+    () => computeCriticalPath(epics, team),
+    [epics, team]
+  );
+  const criticalChainNames = epics
+    .filter((e) => criticalPathIds.has(e.id))
+    .sort((a, b) => (started[a.id] ?? 0) - (started[b.id] ?? 0))
+    .map((e) => e.name);
+
+  const capacitySuggestion = useMemo(
+    () => suggestBestCapacityChange(epics, team, baseline),
+    [epics, team, baseline]
   );
 
   const toggleRole = (role) => {
@@ -524,6 +736,7 @@ export default function LumeriaRoadmap() {
             <div style={{ fontWeight: 600, fontSize: 14 }}>Timeline</div>
             <div className="lr-seg">
               <button className={view === "roadmap" ? "active" : ""} onClick={() => setView("roadmap")}>Roadmap</button>
+              <button className={view === "table" ? "active" : ""} onClick={() => setView("table")}>Table</button>
               <button className={view === "list" ? "active" : ""} onClick={() => setView("list")}>List</button>
             </div>
           </div>
@@ -532,6 +745,10 @@ export default function LumeriaRoadmap() {
             <div style={{ color: "var(--text-dim)", fontSize: 13, padding: 20, textAlign: "center", border: "1px dashed var(--border)", borderRadius: 10 }}>
               No epics in scope. Toggle at least one on the left.
             </div>
+          )}
+
+          {epics.length > 0 && (
+            <InsightCard criticalChainNames={criticalChainNames} suggestion={capacitySuggestion} />
           )}
 
           {epics.length > 0 && view === "roadmap" && (
@@ -543,6 +760,21 @@ export default function LumeriaRoadmap() {
                 started={started}
                 stuckEpicIds={stuckEpicIds}
                 totalSprints={totalSprints}
+                criticalPathIds={criticalPathIds}
+                milestones={MILESTONES_DEFAULT}
+              />
+            </div>
+          )}
+
+          {epics.length > 0 && view === "table" && (
+            <div style={{ marginBottom: 20 }}>
+              <TableView
+                epics={epics}
+                activeEpics={activeEpics}
+                scheduled={scheduled}
+                started={started}
+                stuckEpicIds={stuckEpicIds}
+                criticalPathIds={criticalPathIds}
               />
             </div>
           )}
